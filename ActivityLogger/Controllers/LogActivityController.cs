@@ -4,6 +4,7 @@ using ActivityLogger.Models;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace ActivityLogger.Controllers
@@ -27,7 +28,7 @@ namespace ActivityLogger.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetLogs(int type, int limit)
+        public async Task<IActionResult> GetLogs(int type, int limit)
         {
             try
             {
@@ -40,7 +41,14 @@ namespace ActivityLogger.Controllers
                 string activityType = Enum.GetName(typeof(ActivityTypes), type);
                 var db = _mongoClient.GetDatabase("Logs");
                 var col = db.GetCollection<ActivityLog>("Activities");
-                return Ok(col.Find(a => a.Type == activityType).Limit(limit).ToList());
+
+                var typeFilter = Builders<ActivityLog>.Filter.Eq("Type", activityType);
+                var sort = Builders<ActivityLog>.Sort.Descending("RecordDate");
+
+
+                var filteredCol = await col.Find(typeFilter).Sort(sort).Limit(limit).ToListAsync();
+                var serializedResult = JsonConvert.SerializeObject(filteredCol);
+                return Ok(serializedResult);
             }
             catch (Exception ex)
             {
